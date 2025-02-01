@@ -30,8 +30,3 @@ pub fn initialize_helper_folder() -> Result<(PathBuf, PathBuf), PJHelpError> {
         projects_json_path.to_path_buf(),
     ))
 }
-
-#[test]
-fn t() {
-    folder_path();
-}

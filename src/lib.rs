@@ -4,9 +4,8 @@ use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{self, Display},
-    fs::{self, OpenOptions},
-    io::{self, BufReader, BufWriter, Write},
-    path::PathBuf,
+    fs::{self},
+    io::{self, BufWriter, Write},
 };
 
 #[derive(Debug)]
@@ -102,6 +101,12 @@ impl Tasks {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct Project {
+    name: String,
+    id: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 struct Projects {
     projects: Vec<Project>,
 }
@@ -111,30 +116,12 @@ impl Projects {
             projects: Vec::new(),
         }
     }
-    fn export(&self) {
-        let projects = serde_json::to_string(&self).unwrap();
-        println!("{}", projects);
-    }
-    fn load(&self, path: PathBuf) {
-        let file_handle = OpenOptions::new().read(true).open(path).unwrap();
-        let reader = BufReader::new(file_handle);
-        let projects_data: Projects = serde_json::from_reader(reader).unwrap();
-    }
-    fn save(&self) {
-        unimplemented!()
-    }
     fn new_id(&self) -> u64 {
-        self.projects.last().unwrap().id + 1
+        self.projects.len() as u64
     }
     fn add(&mut self, project: Project) {
         self.projects.push(project);
     }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Project {
-    name: String,
-    id: u64,
 }
 
 #[derive(Debug)]
@@ -183,6 +170,9 @@ impl Data {
 
         write!(&mut tasks_writer, "{}", tasks_json).map_err(PJHelpError::IoError)?;
         write!(&mut pjs_writer, "{}", projects_json).map_err(PJHelpError::IoError)?;
+
+        tasks_writer.flush().map_err(PJHelpError::IoError)?;
+        pjs_writer.flush().map_err(PJHelpError::IoError)?;
 
         Ok(())
     }
