@@ -8,3 +8,8 @@ chrono = {version = "0.4.39", features = ["serde"]}
 serde ={ version = "*", features = ["derive"] }
 serde_json = "*"
 home = "0.5.*"
+
+[features]
+# add "v2" to default, when release 0.2.0,.
+# default = []
+v2 = []

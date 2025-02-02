@@ -9,7 +9,7 @@ use std::{
     io::{self, BufWriter, Write},
 };
 
-enum PJError {
+pub enum PJError {
     SomeError,
     FailedGetHome,
     IoError(io::Error),
@@ -27,12 +27,13 @@ impl TitleIndex {
             title_index: Vec::<String>::new(),
         }
     }
-    fn add(&mut self, title: String) {
+    fn add(&mut self, title: String) -> u64 {
         self.title_index.push(title);
-    }
-    fn new_key(&self) -> u64 {
         self.title_index.len() as u64
     }
+    // fn new_key(&self) -> u64 {
+    //     self.title_index.len() as u64
+    // }
     fn title_to_key(&self, title: String) -> Option<u64> {
         Some(self.title_index.iter().position(|t| t == &title)? as u64)
     }
@@ -61,7 +62,7 @@ impl Display for Status {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Task {
+pub struct Task {
     title: String,
     notes: Option<String>,
     due_date: Option<chrono::DateTime<Local>>,
@@ -72,23 +73,43 @@ struct Task {
     archived: bool,
 }
 impl Task {
-    fn new() -> Self {
+    fn new(
+        title: String,
+        notes: Option<String>,
+        due_date: Option<chrono::DateTime<Local>>,
+        relation: Option<Relation>,
+        status: Status,
+        pj: Project,
+        archive: bool,
+    ) -> Self {
         Task {
-            notes: None,
-            due_date: None,
+            title,
+            notes,
+            due_date,
             created_date: chrono::Local::now(),
-            relation: Some(Relation {
-                parent: Vec::<u64>::new(),
-                sub_task: Vec::<u64>::new(),
-            }),
-            status: Status::Done,
-            project: Project {
-                project: String::new(),
-            },
-            title: String::new(),
-            archived: true,
+            relation,
+            status,
+            project: pj,
+            archived: archive,
         }
     }
+    // fn new_emp() -> Self {
+    //     Task {
+    //         notes: None,
+    //         due_date: None,
+    //         created_date: chrono::Local::now(),
+    //         relation: Some(Relation {
+    //             parent: Vec::<u64>::new(),
+    //             sub_task: Vec::<u64>::new(),
+    //         }),
+    //         status: Status::Done,
+    //         project: Project {
+    //             project: String::new(),
+    //         },
+    //         title: String::new(),
+    //         archived: true,
+    //     }
+    // }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -121,26 +142,50 @@ impl Projects {
     }
 }
 
+#[cfg(feature = "v2")]
+pub enum EditTarget {
+    Title,
+    Notes,
+    Due,
+    Relation,
+    Status,
+    Project,
+    Archive,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
-struct Tasks {
+pub struct Tasks {
     tasks: HashMap<u64, Task>,
     index: TitleIndex,
     projects: Projects,
 }
 impl Tasks {
-    fn new() -> Self {
+    /// Creates a new `Tasks` struct.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tasks::Tasks;
+    /// let tasks = Tasks::new();
+    /// ```
+    pub fn new() -> Self {
         Tasks {
             tasks: HashMap::new(),
             index: TitleIndex::new(),
             projects: Projects::new(),
         }
     }
-    fn add(&mut self, task: Task) {
-        let key = self.index.new_key();
+
+    /// Adds a task to the list of tasks
+    pub fn add_task(&mut self, task: Task) {
+        // TODO: auto insert id
+        // let key = self.index.new_key();
+        let key = self.index.add(task.title.clone());
         self.tasks.insert(key, task);
     }
 
-    fn rm(&mut self, target: String) -> Result<(), PJError> {
+    /// let tasks's archive be true. don't delete & possible to put back.
+    pub fn archive_task(&mut self, target: String) -> Result<(), PJError> {
         self.tasks
             .get_mut(&self.index.title_to_key(target).ok_or(PJError::SomeError)?)
             .ok_or(PJError::SomeError)?
@@ -148,24 +193,51 @@ impl Tasks {
         Ok(())
     }
 
-    fn delete(&mut self, target: String) -> Result<(), PJError> {
+    /// removed(rm) tasks put back
+    pub fn back_task(&mut self, target: String) -> Result<(), PJError> {
+        self.tasks
+            .get_mut(&self.index.title_to_key(target).ok_or(PJError::SomeError)?)
+            .ok_or(PJError::SomeError)?
+            .archived = false;
+        Ok(())
+    }
+
+    /// delete task. can't put back the deleted task.
+    pub fn delete_task(&mut self, target: String) -> Result<(), PJError> {
         self.tasks
             .remove(&self.index.title_to_key(target).ok_or(PJError::SomeError)?);
         Ok(())
     }
 
+    // #[doc(cfg(feature = "v2"))]
+    #[cfg(feature = "v2")]
+    pub fn edit(&mut self, target: EditTarget) {
+        match target {
+            EditTarget::Title => todo!(),
+            EditTarget::Notes => todo!(),
+            EditTarget::Due => todo!(),
+            EditTarget::Relation => todo!(),
+            EditTarget::Status => todo!(),
+            EditTarget::Project => todo!(),
+            EditTarget::Archive => todo!(),
+        }
+    }
+
+    #[cfg(feature = "v2")]
     fn get_info(&self) {
         todo!()
     }
 
+    #[cfg(feature = "v2")]
     fn get_list(&self) {
         todo!()
     }
 
-    fn add_project(&mut self, title: String) {
+    pub fn add_project(&mut self, title: String) {
         self.projects.add(title);
     }
-    fn rm_project(&mut self, target: String) -> Result<(), PJError> {
+
+    pub fn rm_project(&mut self, target: String) -> Result<(), PJError> {
         if !self.projects.rm(target) {
             Err(PJError::SomeError)
         } else {
@@ -201,5 +273,10 @@ impl Tasks {
 
         tasks_writer.flush().map_err(PJError::IoError)?;
         Ok(())
+    }
+}
+impl Default for Tasks {
+    fn default() -> Self {
+        Tasks::new()
     }
 }
