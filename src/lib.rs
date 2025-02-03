@@ -15,6 +15,9 @@ pub enum PJError {
     IoError(io::Error),
     FailedConvertT2Json,
     FailedConvertJson2T,
+    NotFoundItem,
+    NotFoundKey,
+    FailedRemoveItem,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -39,17 +42,35 @@ impl TitleIndex {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Relation {
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct Relation {
     parent: Vec<u64>,
     sub_task: Vec<u64>,
 }
+impl Relation {
+    pub fn new() -> Self {
+        Relation {
+            parent: Vec::<u64>::new(),
+            sub_task: Vec::<u64>::new(),
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-enum Status {
+pub enum Status {
     NotStarted,
     InProgress,
     Done,
+}
+impl Status {
+    pub fn new() -> Self {
+        Self::NotStarted
+    }
+}
+impl Default for Status {
+    fn default() -> Self {
+        Self::NotStarted
+    }
 }
 impl Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -73,7 +94,7 @@ pub struct Task {
     archived: bool,
 }
 impl Task {
-    fn new(
+    pub fn new(
         title: String,
         notes: Option<String>,
         due_date: Option<chrono::DateTime<Local>>,
@@ -112,9 +133,17 @@ impl Task {
     // }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Project {
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct Project {
     project: String,
+}
+
+impl Project {
+    pub fn new() -> Self {
+        Project {
+            project: String::new(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -164,8 +193,16 @@ pub struct Tasks {
     projects: Projects,
 }
 impl Tasks {
-    /// Creates a new `Tasks` struct.
-    pub fn new() -> Self {
+    // Creates a new `Tasks` struct.
+    // fn new() -> Self {
+    //     Tasks {
+    //         tasks: HashMap::new(),
+    //         index: TitleIndex::new(),
+    //         projects: Projects::new(),
+    //     }
+    // }
+
+    fn new_emp() -> Self {
         Tasks {
             tasks: HashMap::new(),
             index: TitleIndex::new(),
@@ -183,8 +220,13 @@ impl Tasks {
     /// let tasks's archive be true. don't delete & possible to put back.
     pub fn archive_task(&mut self, target: String) -> Result<(), PJError> {
         self.tasks
-            .get_mut(&self.index.title_to_key(target).ok_or(PJError::SomeError)?)
-            .ok_or(PJError::SomeError)?
+            .get_mut(
+                &self
+                    .index
+                    .title_to_key(target)
+                    .ok_or(PJError::NotFoundKey)?,
+            )
+            .ok_or(PJError::NotFoundItem)?
             .archived = true;
         Ok(())
     }
@@ -192,16 +234,25 @@ impl Tasks {
     /// removed(rm) tasks put back
     pub fn back_task(&mut self, target: String) -> Result<(), PJError> {
         self.tasks
-            .get_mut(&self.index.title_to_key(target).ok_or(PJError::SomeError)?)
-            .ok_or(PJError::SomeError)?
+            .get_mut(
+                &self
+                    .index
+                    .title_to_key(target)
+                    .ok_or(PJError::NotFoundKey)?,
+            )
+            .ok_or(PJError::NotFoundItem)?
             .archived = false;
         Ok(())
     }
 
     /// delete task. can't put back the deleted task.
     pub fn delete_task(&mut self, target: String) -> Result<(), PJError> {
-        self.tasks
-            .remove(&self.index.title_to_key(target).ok_or(PJError::SomeError)?);
+        self.tasks.remove(
+            &self
+                .index
+                .title_to_key(target)
+                .ok_or(PJError::NotFoundKey)?,
+        );
         Ok(())
     }
 
@@ -235,7 +286,7 @@ impl Tasks {
 
     pub fn rm_project(&mut self, target: String) -> Result<(), PJError> {
         if !self.projects.rm(target) {
-            Err(PJError::SomeError)
+            Err(PJError::FailedRemoveItem)
         } else {
             Ok(())
         }
@@ -258,7 +309,7 @@ impl Tasks {
         let data_json = fs::read_to_string(path_set).map_err(PJError::IoError)?;
 
         Ok(if data_json.is_empty() {
-            Tasks::new()
+            Tasks::new_emp()
         } else {
             let parsed_tasks: Tasks =
                 serde_json::from_str(&fs::read_to_string(&data_json).map_err(PJError::IoError)?)
@@ -300,6 +351,6 @@ impl Tasks {
 
 impl Default for Tasks {
     fn default() -> Self {
-        Tasks::new()
+        Tasks::new_emp()
     }
 }
