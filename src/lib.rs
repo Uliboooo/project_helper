@@ -9,6 +9,7 @@ use std::{
     io::{self, BufWriter, Write},
 };
 
+#[derive(Debug)]
 pub enum PJError {
     SomeError,
     FailedGetHome,
@@ -19,6 +20,20 @@ pub enum PJError {
     NotFoundKey,
     FailedRemoveItem,
     TasksIsEmpty,
+}
+impl PartialEq for PJError {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            PJError::IoError(e) => match other {
+                PJError::IoError(other_e) => e.kind() == other_e.kind(),
+                _ => false,
+            },
+            _ => match other {
+                PJError::IoError(_) => false,
+                _ => self == other,
+            },
+        }
+    }
 }
 impl Display for PJError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
