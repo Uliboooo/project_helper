@@ -18,6 +18,25 @@ pub enum PJError {
     NotFoundItem,
     NotFoundKey,
     FailedRemoveItem,
+    TasksIsEmpty,
+}
+impl Display for PJError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PJError::SomeError => write!(f, "something error"),
+            PJError::FailedGetHome => write!(f, "failed get home path.please restart."),
+            PJError::IoError(e) => write!(f, "IO error: {}", e),
+            PJError::FailedConvertT2Json => write!(f, "failed convert tasks to json with serde."),
+            PJError::FailedConvertJson2T => write!(f, "failed convert json to tasks with serde."),
+            PJError::NotFoundItem => write!(f, "not found item. please input exist task."),
+            PJError::NotFoundKey => write!(f, "not found key. please input exist task."),
+            PJError::FailedRemoveItem => write!(f, "failed remove item for some error"),
+            PJError::TasksIsEmpty => write!(
+                f,
+                "Tasks and projects is nothing. so don't sore data to database. "
+            ),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -341,6 +360,9 @@ impl Tasks {
 
         // TODO: 空の場合の処理も?
         let tasks_json = serde_json::to_string(&self).map_err(|_| PJError::FailedConvertT2Json)?;
+        if tasks_json.is_empty() {
+            return Err(PJError::TasksIsEmpty);
+        }
 
         write!(&mut tasks_writer, "{}", tasks_json).map_err(PJError::IoError)?;
 
