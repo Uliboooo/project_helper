@@ -20,6 +20,7 @@ pub enum PJError {
     NotFoundKey,
     FailedRemoveItem,
     TasksIsEmpty,
+    AlreadyExists,
 }
 impl PartialEq for PJError {
     fn eq(&self, other: &Self) -> bool {
@@ -50,6 +51,7 @@ impl Display for PJError {
                 f,
                 "Tasks and projects is nothing. so don't sore data to database. "
             ),
+            PJError::AlreadyExists => write!(f, "added project already exists."),
         }
     }
 }
@@ -191,9 +193,13 @@ impl Projects {
         }
     }
 
-    fn add(&mut self, title: String) -> bool {
+    fn add(&mut self, title: String) -> Result<(), PJError> {
         // self.projects.push(title);
-        self.projects.insert(title)
+        if self.projects.insert(title) {
+            Ok(())
+        } else {
+            Err(PJError::AlreadyExists)
+        }
     }
 
     // fn new_key(&self) -> u64 {
@@ -314,8 +320,9 @@ impl Tasks {
         todo!()
     }
 
-    pub fn add_project(&mut self, title: String) {
-        self.projects.add(title);
+    pub fn add_project(&mut self, title: String) -> Result<(), PJError>{
+        self.projects.add(title)?;
+        Ok(())
     }
 
     pub fn rm_project(&mut self, target: String) -> Result<(), PJError> {
