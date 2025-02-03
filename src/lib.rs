@@ -91,6 +91,11 @@ impl Relation {
         }
     }
 }
+// impl From<String> for Relation {
+//     fn from(parents: String) -> Self {
+
+//     }
+// }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Status {
@@ -114,6 +119,19 @@ impl Display for Status {
             Status::NotStarted => write!(f, "not started"),
             Status::InProgress => write!(f, "in progress"),
             Status::Done => write!(f, "done"),
+        }
+    }
+}
+impl From<Option<String>> for Status {
+    fn from(value: Option<String>) -> Self {
+        match value {
+            Some(v) => match v.as_str() {
+                "n" => Status::NotStarted,
+                "i" => Status::InProgress,
+                "d" => Status::Done,
+                _ => Status::NotStarted,
+            },
+            None => Status::NotStarted,
         }
     }
 }
@@ -320,7 +338,7 @@ impl Tasks {
         todo!()
     }
 
-    pub fn add_project(&mut self, title: String) -> Result<(), PJError>{
+    pub fn add_project(&mut self, title: String) -> Result<(), PJError> {
         self.projects.add(title)?;
         Ok(())
     }
