@@ -127,16 +127,20 @@ impl Projects {
             projects: HashSet::<String>::new(),
         }
     }
+
     fn add(&mut self, title: String) -> bool {
         // self.projects.push(title);
         self.projects.insert(title)
     }
-    fn new_key(&self) -> u64 {
-        self.projects.len() as u64
-    }
-    fn title_to_key(&self, title: String) -> Option<u64> {
-        Some(self.projects.iter().position(|t| t == &title)? as u64)
-    }
+
+    // fn new_key(&self) -> u64 {
+    //     self.projects.len() as u64
+    // }
+
+    // fn title_to_key(&self, title: String) -> Option<u64> {
+    //     Some(self.projects.iter().position(|t| t == &title)? as u64)
+    // }
+
     fn rm(&mut self, target: String) -> bool {
         self.projects.remove(&target)
     }
@@ -161,13 +165,6 @@ pub struct Tasks {
 }
 impl Tasks {
     /// Creates a new `Tasks` struct.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use tasks::Tasks;
-    /// let tasks = Tasks::new();
-    /// ```
     pub fn new() -> Self {
         Tasks {
             tasks: HashMap::new(),
@@ -178,7 +175,6 @@ impl Tasks {
 
     /// Adds a task to the list of tasks
     pub fn add_task(&mut self, task: Task) {
-        // TODO: auto insert id
         // let key = self.index.new_key();
         let key = self.index.add(task.title.clone());
         self.tasks.insert(key, task);
@@ -245,6 +241,17 @@ impl Tasks {
         }
     }
 
+    /// Load tasks from JSON file into memory.
+    ///
+    /// Returns:
+    /// - `Ok(Tasks)`: A new instance of Tasks containing loaded or parsed task data
+    ///   if a JSON file exists in the initialized helper folder.
+    /// - `Err(PJError)`: An error if no JSON file is found or if deserialization fails.
+    ///
+    /// If the JSON file is empty, a new Task instance will be created and returned.
+    /// If deserialization of the JSON fails (e.g., invalid format), an error will
+    /// be returned with details about the parsing failure.
+    ///
     pub fn load() -> Result<Self, PJError> {
         let path_set = data_ctrl::initialize_helper_folder()?;
 
@@ -260,6 +267,21 @@ impl Tasks {
         })
     }
 
+    /// # save()
+    ///
+    /// Saves task data into a JSON file in a specific folder path.
+    ///
+    /// # Return Value
+    /// Returns Ok(()) on success, or PJError on failure with appropriate error message
+    ///
+    /// # Possible Errors
+    /// - Path not found in data_ctrl::initialize_helper_folder()
+    /// - Failure to convert task data to JSON string
+    /// - IO errors while writing files
+    ///
+    /// # Implementation Details
+    /// - Uses BufWriter for efficient buffer-based writing of large files
+    /// - Each write operation overwrites the file entirely instead of appending
     pub fn save(&self) -> Result<(), PJError> {
         let path = data_ctrl::initialize_helper_folder()?;
 
@@ -275,6 +297,7 @@ impl Tasks {
         Ok(())
     }
 }
+
 impl Default for Tasks {
     fn default() -> Self {
         Tasks::new()
