@@ -20,6 +20,7 @@ pub enum PJError {
     NotFoundKey,
     FailedRemoveItem,
     TasksIsEmpty,
+    AlreadyExists,
 }
 impl PartialEq for PJError {
     fn eq(&self, other: &Self) -> bool {
@@ -50,6 +51,7 @@ impl Display for PJError {
                 f,
                 "Tasks and projects is nothing. so don't sore data to database. "
             ),
+            PJError::AlreadyExists => write!(f, "added project already exists."),
         }
     }
 }
@@ -78,17 +80,27 @@ impl TitleIndex {
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Relation {
-    parent: Vec<u64>,
-    sub_task: Vec<u64>,
+    parent_keys: Vec<u64>,
+    subtask_keys: Vec<u64>,
 }
 impl Relation {
     pub fn new() -> Self {
         Relation {
-            parent: Vec::<u64>::new(),
-            sub_task: Vec::<u64>::new(),
+            parent_keys: Vec::<u64>::new(),
+            subtask_keys: Vec::<u64>::new(),
         }
     }
 }
+// impl From<Option<Vec<String>>> for Relation {
+//     fn from(parents: Option<Vec<String>>) -> Self {
+//         match parents {
+//             Some(ps) => {
+//                 Some(Relation { parent_keys: todo!(), subtask_keys: todo!() })
+//             },
+//             None => None,
+//         }
+//     }
+// }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Status {
@@ -115,6 +127,19 @@ impl Display for Status {
         }
     }
 }
+impl From<Option<String>> for Status {
+    fn from(value: Option<String>) -> Self {
+        match value {
+            Some(v) => match v.as_str() {
+                "n" => Status::NotStarted,
+                "i" => Status::InProgress,
+                "d" => Status::Done,
+                _ => Status::NotStarted,
+            },
+            None => Status::NotStarted,
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Task {
@@ -122,7 +147,7 @@ pub struct Task {
     notes: Option<String>,
     due_date: Option<chrono::DateTime<Local>>,
     created_date: chrono::DateTime<Local>,
-    relation: Option<Relation>,
+    // relation: Option<Relation>,
     status: Status,
     project: Project,
     archived: bool,
@@ -132,7 +157,7 @@ impl Task {
         title: String,
         notes: Option<String>,
         due_date: Option<chrono::DateTime<Local>>,
-        relation: Option<Relation>,
+        // relation: Option <Relation>,
         status: Status,
         pj: Project,
         archive: bool,
@@ -142,7 +167,7 @@ impl Task {
             notes,
             due_date,
             created_date: chrono::Local::now(),
-            relation,
+            // relation,
             status,
             project: pj,
             archived: archive,
@@ -191,9 +216,23 @@ impl Projects {
         }
     }
 
-    fn add(&mut self, title: String) -> bool {
+    fn add(&mut self, title: String) -> Result<(), PJError> {
         // self.projects.push(title);
-        self.projects.insert(title)
+        if self.projects.insert(title) {
+            Ok(())
+        } else {
+            Err(PJError::AlreadyExists)
+        }
+    }
+
+    fn exists(&self, target: String) -> Option<Project> {
+        // self.projects.iter().any(|t| t == &target)
+        if self.projects.contains(&target) {
+            Some(Project{ project: target })
+        } else {
+            None
+        }
+        
     }
 
     // fn new_key(&self) -> u64 {
@@ -208,6 +247,11 @@ impl Projects {
         self.projects.remove(&target)
     }
 }
+
+// TODO
+// pub fn project_title_to_project() -> Project{
+
+// }
 
 #[cfg(feature = "v2")]
 pub enum EditTarget {
@@ -290,6 +334,27 @@ impl Tasks {
         Ok(())
     }
 
+    pub fn get_project_if_exists(&self, target: String) -> Option<Project> {
+        self.projects.exists(target)
+    }
+
+    // fn title_to_id(&self, title: String) -> Result<u64, PJError> {
+    //     let a = self.index.title_index.get(title)
+    // }
+
+    // pub fn a(&self, subtasks: Vec<String>) -> Relation {
+    //     // let a = self.projects.;
+    //     let (mut tmp, mut tmp2) = (Vec::<u64>::new(), Vec::<u64>::new());
+
+    //     for i in subtasks {
+    //         match self.projects.title_to_key(i) {
+    //             Some(v) => tmp.,
+    //             None => todo!(),
+    //         }
+    //     }
+    //     Relation { parent_keys: tmp, subtask_keys: tmp2 }
+    // }
+
     // #[doc(cfg(feature = "v2"))]
     #[cfg(feature = "v2")]
     pub fn edit(&mut self, target: EditTarget) {
@@ -314,8 +379,9 @@ impl Tasks {
         todo!()
     }
 
-    pub fn add_project(&mut self, title: String) {
-        self.projects.add(title);
+    pub fn add_project(&mut self, title: String) -> Result<(), PJError> {
+        self.projects.add(title)?;
+        Ok(())
     }
 
     pub fn rm_project(&mut self, target: String) -> Result<(), PJError> {
